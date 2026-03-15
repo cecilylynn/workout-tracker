@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#E8734A">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Workouts">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <title>Workout Tracker</title>
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="style.css">
+
+  <!-- CDN Libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ══════════════════════════════
+       HOME TAB
+  ══════════════════════════════ -->
+  <section class="tab-content active" data-tab="home">
+    <div class="home-header">
+      <div class="home-greeting" id="home-greeting">Good morning</div>
+      <div class="home-title">Dashboard</div>
+    </div>
+
+    <div class="stat-row">
+      <div class="stat-card">
+        <div class="stat-number" id="stat-week">–</div>
+        <div class="stat-label">This Week</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="stat-month">–</div>
+        <div class="stat-label">This Month</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="stat-year">–</div>
+        <div class="stat-label">This Year</div>
+      </div>
+    </div>
+
+    <div class="home-actions">
+      <button class="btn btn-primary btn-full" onclick="handleNewWorkout()">
+        <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2.5" fill="none"><path d="M12 5v14M5 12h14"/></svg>
+        New Workout
+      </button>
+    </div>
+
+    <div id="last-workout-wrap"></div>
+  </section>
+
+  <!-- ══════════════════════════════
+       WORKOUT TAB
+  ══════════════════════════════ -->
+  <section class="tab-content" data-tab="workout">
+    <div id="workout-inner"></div>
+  </section>
+
+  <!-- ══════════════════════════════
+       STATS TAB
+  ══════════════════════════════ -->
+  <section class="tab-content" data-tab="stats">
+    <!-- List View -->
+    <div class="stats-list-view" id="stats-list-view">
+      <div class="stats-header">
+        <div class="page-title">Stats</div>
+      </div>
+      <div class="search-bar">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input class="search-input" type="text" placeholder="Search exercises…" id="stats-search" oninput="filterStatsSearch(this.value)">
+      </div>
+      <div id="stats-exercise-list"></div>
+    </div>
+
+    <!-- Detail View -->
+    <div class="stats-detail" id="stats-detail">
+      <div class="page-header">
+        <button class="back-btn" onclick="showStatsList()">
+          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          Back
+        </button>
+        <div class="page-title" id="stats-detail-title"></div>
+      </div>
+      <div class="px-20 mt-4" id="stats-detail-badge"></div>
+      <div class="chart-container mt-16">
+        <canvas id="stats-chart"></canvas>
+      </div>
+      <div class="stats-kpi-row">
+        <div class="stats-kpi-card">
+          <div class="stats-kpi-value" id="stats-best">–</div>
+          <div class="stats-kpi-label">Personal Best</div>
+        </div>
+        <div class="stats-kpi-card">
+          <div class="stats-kpi-value" id="stats-avg">–</div>
+          <div class="stats-kpi-label">Average</div>
+        </div>
+      </div>
+      <div class="section-label mt-16">Recent Sessions</div>
+      <div class="recent-sessions-list" id="stats-recent"></div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════
+       HISTORY TAB
+  ══════════════════════════════ -->
+  <section class="tab-content" data-tab="history">
+    <div class="history-header">
+      <div class="page-title">History</div>
+      <button class="btn btn-secondary btn-sm" onclick="openLogPastWorkout()">+ Log Past</button>
+    </div>
+    <div class="search-bar">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input class="search-input" type="text" placeholder="Search by exercise…" id="history-search" oninput="debounceHistorySearch(this.value)">
+    </div>
+    <div class="history-filters px-20" style="margin-bottom:16px;">
+      <div class="chips">
+        <div class="chip active" data-filter="all" onclick="setHistoryFilter(this, 'all')">All</div>
+        <div class="chip" data-filter="week" onclick="setHistoryFilter(this, 'week')">This Week</div>
+        <div class="chip" data-filter="month" onclick="setHistoryFilter(this, 'month')">This Month</div>
+      </div>
+    </div>
+    <div class="session-list" id="history-list"></div>
+  </section>
+
+  <!-- ══════════════════════════════
+       SETTINGS TAB
+  ══════════════════════════════ -->
+  <section class="tab-content" data-tab="settings">
+    <div id="settings-main-view">
+      <div class="settings-header">
+        <div class="page-title">Settings</div>
+      </div>
+
+      <div class="settings-section">
+        <div class="section-label">Exercise Library</div>
+        <div class="settings-group mx-20">
+          <div class="settings-row" onclick="showExerciseLibrary()">
+            <span class="settings-row-label">Manage Exercises</span>
+            <span class="settings-row-value">
+              <svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="section-label">Preferences</div>
+        <div class="settings-group mx-20">
+          <div class="settings-row" style="cursor:default;">
+            <span class="settings-row-label">Weight Units</span>
+            <div class="units-toggle" id="units-toggle">
+              <button class="units-btn active" id="units-lbs" onclick="setUnits('lbs')">lbs</button>
+              <button class="units-btn" id="units-kg" onclick="setUnits('kg')">kg</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="section-label">Data</div>
+        <div class="settings-group mx-20">
+          <div class="settings-row" onclick="exportData()">
+            <span class="settings-row-label">Export Data (CSV)</span>
+            <span class="settings-row-value">
+              <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+            </span>
+          </div>
+          <div class="settings-row settings-row-danger" onclick="confirmClearAll()">
+            <span class="settings-row-label">Clear All Data</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Exercise Library Sub-view -->
+    <div id="exercise-library-view" class="hidden">
+      <div class="page-header">
+        <button class="back-btn" onclick="hideExerciseLibrary()">
+          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          Back
+        </button>
+        <div class="page-title">Exercises</div>
+      </div>
+      <div class="px-20" style="margin-bottom:16px;">
+        <button class="btn btn-primary btn-full" onclick="openAddExerciseForm()">
+          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2.5" fill="none"><path d="M12 5v14M5 12h14"/></svg>
+          Add Exercise
+        </button>
+      </div>
+      <div class="settings-group" style="margin:0 20px;" id="exercise-lib-list"></div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════
+       TAB BAR
+  ══════════════════════════════ -->
+  <nav class="tab-bar">
+    <button class="tab-btn active" data-tab="home" onclick="switchTab('home')">
+      <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      <span class="tab-label">Home</span>
+    </button>
+    <button class="tab-btn" data-tab="workout" onclick="switchTab('workout')">
+      <svg viewBox="0 0 24 24"><path d="M6.5 6.5h11M6.5 17.5h11M6 12h12"/><circle cx="3.5" cy="6.5" r="1.5"/><circle cx="3.5" cy="17.5" r="1.5"/><circle cx="20.5" cy="6.5" r="1.5"/><circle cx="20.5" cy="17.5" r="1.5"/></svg>
+      <span class="tab-label">Workout</span>
+    </button>
+    <button class="tab-btn" data-tab="stats" onclick="switchTab('stats')">
+      <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      <span class="tab-label">Stats</span>
+    </button>
+    <button class="tab-btn" data-tab="history" onclick="switchTab('history')">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      <span class="tab-label">History</span>
+    </button>
+    <button class="tab-btn" data-tab="settings" onclick="switchTab('settings')">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      <span class="tab-label">Settings</span>
+    </button>
+  </nav>
+
+  <!-- Toast notification -->
+  <div class="toast" id="toast"></div>
+
+</div><!-- end #app -->
+
+<!-- Scripts (order matters) -->
+<script src="config.js?v=2"></script>
+<script src="data.js?v=2"></script>
+<script src="charts.js?v=2"></script>
+<script src="app.js?v=2"></script>
+</body>
+</html>
