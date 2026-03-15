@@ -5,7 +5,9 @@
 let _supabase = null;
 
 function isConfigured() {
-  return SUPABASE_URL && !SUPABASE_URL.includes('your-project-id');
+  return typeof SUPABASE_URL !== 'undefined'
+    && SUPABASE_URL
+    && !SUPABASE_URL.includes('your-project-id');
 }
 
 function getClient() {
